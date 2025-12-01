@@ -155,16 +155,37 @@
         });
         var files = new Lampa.Explorer(object);
         var filter = new Lampa.Filter(object);
-        var source = object.source || 'uafix';
+        var source = object.source || Lampa.Storage.get('uafix_uaserials_source', 'uafix');
         var baseUrl = source === 'uaserials' ? 'https://uaserials.pro' : 'https://uafix.net';
         var last;
         var videos = [];
+        var sources_list = {
+            'uafix': { name: 'UAFiX', url: 'https://uafix.net' },
+            'uaserials': { name: 'UASerials', url: 'https://uaserials.pro' }
+        };
+
+        this.changeSource = function(newSource) {
+            source = newSource;
+            baseUrl = sources_list[newSource].url;
+            Lampa.Storage.set('uafix_uaserials_source', newSource);
+            object.source = newSource;
+            this.reset();
+            this.search();
+        };
 
         this.initialize = function() {
+            var _this = this;
             this.loading(true);
             filter.onBack = function() {
                 Lampa.Activity.backward();
             };
+            filter.onSelect = function(type, a, b) {
+                if (type == 'sort') {
+                    Lampa.Select.close();
+                    _this.changeSource(a.source);
+                }
+            };
+            filter.render().find('.filter--sort span').text('Origin');
             scroll.body().addClass('torrent-list');
             files.appendFiles(scroll.render());
             files.appendHead(filter.render());
@@ -172,7 +193,20 @@
             scroll.body().append(Lampa.Template.get('lampac_content_loading'));
             Lampa.Controller.enable('content');
             this.loading(false);
+            this.updateSourceFilter();
             this.search();
+        };
+
+        this.updateSourceFilter = function() {
+            var sourceItems = Object.keys(sources_list).map(function(key) {
+                return {
+                    title: sources_list[key].name,
+                    source: key,
+                    selected: key == source
+                };
+            });
+            filter.set('sort', sourceItems);
+            filter.chosen('sort', [sources_list[source].name]);
         };
 
         this.search = function() {
@@ -366,6 +400,8 @@
 
         this.reset = function() {
             scroll.clear();
+            network.clear();
+            scroll.body().append(Lampa.Template.get('lampac_content_loading'));
         };
 
         this.pause = function() {};
@@ -429,7 +465,8 @@
                     title: 'UAFiX - ' + params.element.title,
                     component: 'uafix-uaserials',
                     movie: params.element,
-                    source: 'uafix'
+                    source: 'uafix',
+                    search: params.element.title
                 });
             }
         };
@@ -494,7 +531,8 @@
                     title: 'UASerials - ' + params.element.title,
                     component: 'uafix-uaserials',
                     movie: params.element,
-                    source: 'uaserials'
+                    source: 'uaserials',
+                    search: params.element.title
                 });
             }
         };
@@ -521,6 +559,10 @@
                 
                 var id = Lampa.Utils.hash(object.number_of_seasons ? object.original_name : object.original_title);
                 var all = Lampa.Storage.get('clarification_search', '{}');
+                var savedSource = Lampa.Storage.get('uafix_uaserials_source', 'uafix');
+                
+                var movieObj = Lampa.Arrays.clone(object);
+                movieObj.source = savedSource;
                 
                 Lampa.Activity.push({
                     url: '',
@@ -529,10 +571,10 @@
                     search: all[id] ? all[id] : (object.title || object.name),
                     search_one: object.title || object.name,
                     search_two: object.original_title || object.original_name,
-                    movie: object,
+                    movie: movieObj,
                     page: 1,
                     clarification: all[id] ? true : false,
-                    source: 'uafix'
+                    source: savedSource
                 });
             }
         };
@@ -595,6 +637,10 @@
                 
                 var id = Lampa.Utils.hash(e.movie.number_of_seasons ? e.movie.original_name : e.movie.original_title);
                 var all = Lampa.Storage.get('clarification_search', '{}');
+                var savedSource = Lampa.Storage.get('uafix_uaserials_source', 'uafix');
+                
+                var movieObj = Lampa.Arrays.clone(e.movie);
+                movieObj.source = savedSource;
                 
                 Lampa.Activity.push({
                     url: '',
@@ -603,10 +649,10 @@
                     search: all[id] ? all[id] : (e.movie.title || e.movie.name),
                     search_one: e.movie.title || e.movie.name,
                     search_two: e.movie.original_title || e.movie.original_name,
-                    movie: e.movie,
+                    movie: movieObj,
                     page: 1,
                     clarification: all[id] ? true : false,
-                    source: 'uafix'
+                    source: savedSource
                 });
             });
             
